@@ -69,6 +69,7 @@ sources = [
     "src/gui/dialog/misc/search.py",
     "src/gui/dialog/misc/view_cover.py",
     "src/gui/dialog/setting/auto_select.py",
+    "src/gui/dialog/setting/asr.py",
     "src/gui/dialog/setting/cdn_server.py",
     "src/gui/dialog/setting/danmaku_style.py",
     "src/gui/dialog/setting/edit_host.py",

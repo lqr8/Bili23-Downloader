@@ -278,7 +278,10 @@ class Translator:
             "B23_TV_URL_EXPIRED": translate("ERROR_MESSAGES", "The b23.tv short link is invalid or has expired."),
             "INVALID_LINK": translate("ERROR_MESSAGES", "Invalid link format"),
             "PARSING_STOPPED": translate("ERROR_MESSAGES", "Parsing stopped"),
-            "PARSING_STOPPED_MESSAGE": translate("ERROR_MESSAGES", "An error occurred during parsing, and the process has been stopped. Parsing was completed up to page {page}.\n\nReminder: Due to Bilibili's anti-abuse mechanism, parsing too many pages or at too high a frequency may result in failure and IP ban. Please use with caution!\n\n{error}")
+            "PARSING_STOPPED_MESSAGE": translate("ERROR_MESSAGES", "An error occurred during parsing, and the process has been stopped. Parsing was completed up to page {page}.\n\nReminder: Due to Bilibili's anti-abuse mechanism, parsing too many pages or at too high a frequency may result in failure and IP ban. Please use with caution!\n\n{error}"),
+            "ASR_NOT_CONFIGURED": translate("ERROR_MESSAGES", "Speech-to-text is enabled but the API key is not configured. Please go to Settings → Additional → Speech-to-Text (ASR) → API Settings to configure it."),
+            "ASR_FAILED": translate("ERROR_MESSAGES", "Speech-to-text transcription failed"),
+            "ASR_EMPTY_RESULT": translate("ERROR_MESSAGES", "The speech-to-text result is empty")
         }
 
     @staticmethod
@@ -305,6 +308,11 @@ class Translator:
             "PARSING_PAGE": translate("TIP_MESSAGES", "Parsing page {page}, total {total_page} pages, progress: {progress}%"),
             "PARSING_LINK": translate("TIP_MESSAGES", "Parsing link {link}, total {total_links} links, progress: {progress}%"),
             "MEDIA_INFO_UPDATED": translate("TIP_MESSAGES", "Media info updated"),
+            "ASR": translate("TIP_MESSAGES", "Speech-to-Text (ASR)"),
+            "EXTRACTING_AUDIO": translate("TIP_MESSAGES", "Extracting audio..."),
+            "UPLOADING_AUDIO": translate("TIP_MESSAGES", "Uploading audio..."),
+            "TRANSCRIBING_SPEECH": translate("TIP_MESSAGES", "Transcribing speech..."),
+            "ASR_SKIPPED_NO_AUDIO": translate("TIP_MESSAGES", "No audio track is available in the download, speech-to-text has been skipped"),
         }
 
     @staticmethod
@@ -313,7 +321,8 @@ class Translator:
         return {
             "DANMAKU": translate("ADDITIONAL_FILES_QUALIFIER", "Danmaku"),
             "SUBTITLES": translate("ADDITIONAL_FILES_QUALIFIER", "Subtitles"),
-            "METADATA": translate("ADDITIONAL_FILES_QUALIFIER", "Metadata")
+            "METADATA": translate("ADDITIONAL_FILES_QUALIFIER", "Metadata"),
+            "ASR": translate("ADDITIONAL_FILES_QUALIFIER", "ASR")
         }
 
     @staticmethod

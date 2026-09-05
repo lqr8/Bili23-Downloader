@@ -3,6 +3,7 @@ from ...common.signal_bus import signal_bus
 from ...common.translator import Translator
 
 from ..task.info import TaskInfo
+from ...asr.worker import ASRWorker
 from .downloader import Downloader
 
 class DownloaderManager:
@@ -47,9 +48,13 @@ class DownloaderManager:
 
     def wait(self, task_info: TaskInfo, callback):
         downloader = self.get(task_info)
-        
+
         if downloader:
             downloader.wait(callback)
+
+    def stop_asr(self, task_info: TaskInfo, callback):
+        # 中断任务的语音转写线程，待其退出后执行 callback
+        ASRWorker.stop_for_task(task_info.Basic.task_id, callback)
 
     def show_notification(self):
         # 如果没有正在下载的任务了，发射下载完成的通知信号

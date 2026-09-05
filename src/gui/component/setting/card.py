@@ -325,6 +325,26 @@ class MetadataSettingCard(ExpandGroupSettingCard):
         self.addGroup("", self.tr("Download Metadata"), "", self.download_switch)
         self.addGroup("", self.tr("Metadata Format"), "", self.type_choice)
 
+class ASRSettingCard(ExpandGroupSettingCard):
+    def __init__(self, full_mode = True, parent = None):
+        super().__init__(FluentIcon.MICROPHONE, self.tr("Speech-to-Text (ASR)"), self.tr("Transcribe downloaded audio into subtitles or transcripts using Alibaba Cloud Bailian"), parent)
+
+        self.asr_switch = SettingSwitchButton(config.asr_enabled, parent = self)
+
+        self.format_choice = SettingComboBox(config.asr_output_format, ["srt", "txt", "srt+txt"], parent = self)
+        self.format_choice.setFixedWidth(120)
+
+        self.viewLayout.setContentsMargins(0, 0, 0, 0)
+        self.viewLayout.setSpacing(0)
+
+        self.addGroup("", self.tr("Enable Speech-to-Text"), self.tr("Transcribe audio into text after the download completes"), self.asr_switch)
+        self.addGroup("", self.tr("Output Format"), self.tr("Output format of the transcription result"), self.format_choice)
+
+        if full_mode:
+            self.custom_btn = PushButton(self.tr("Configure…"), self)
+
+            self.addGroup("", self.tr("API Settings"), self.tr("Configure the API key and model name"), self.custom_btn)
+
 class NumberSettingCard(ExpandGroupSettingCard):
     def __init__(self, parent_window, parent = None):
         super().__init__(ExtendedFluentIcon.NUMBERS, self.tr("Numbering"), self.tr("Configure how the {number} variable is formatted"), parent)

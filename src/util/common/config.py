@@ -9,7 +9,7 @@ from qfluentwidgets import (
 from .serializer import LanguageSerializer, ScalingSerializer
 from .enum import (
     Language, WhenClose, DanmakuType, SubtitleType, CoverType, MetadataType, ProxyType, FFmpegSource, NumberingType,
-    Scaling, FileConflictResolution, VideoContainer, AutoSelectMode, Area, DuplicateDownloadResolution
+    Scaling, FileConflictResolution, VideoContainer, AutoSelectMode, Area, DuplicateDownloadResolution, AsrOutputFormat
 )
 from ._json import json_loads
 
@@ -351,6 +351,12 @@ class APPConfig(QConfig):
     download_metadata = ConfigItem("Additional", "download_metadata", False, BoolValidator())
     metadata_type = OptionsConfigItem("Additional", "metadata_type", MetadataType.NFO, OptionsValidator(MetadataType), EnumSerializer(MetadataType))
 
+    # Speech Recognition（阿里云百炼 DashScope）
+    asr_enabled = ConfigItem("Speech Recognition", "asr_enabled", False, BoolValidator())
+    asr_api_key = ConfigItem("Speech Recognition", "asr_api_key", "")
+    asr_model = ConfigItem("Speech Recognition", "asr_model", "qwen3-asr-flash-filetrans")
+    asr_output_format = OptionsConfigItem("Speech Recognition", "asr_output_format", AsrOutputFormat.SRT, OptionsValidator(AsrOutputFormat), EnumSerializer(AsrOutputFormat))
+
     # File Naming
     naming_rule_list = ConfigItem("File Naming", "naming_rule_list", DefaultValue.naming_rule_list)
     numbering_type = OptionsConfigItem("File Naming", "numbering_type", NumberingType.CONTINUOUS, OptionsValidator(NumberingType), EnumSerializer(NumberingType))
@@ -479,6 +485,24 @@ if not config_path.exists():
     logger.warning("配置文件不存在，将创建新配置文件")
 
 qconfig.load(config_path, config)
+
+# 语音转文字相关配置项为后续版本新增，检测到缺失时保存一次，确保配置文件中存在这些键，便于用户手动填写 API Key
+def _ensure_asr_config_written():
+    if not config_path.exists():
+        config.save()
+        return
+
+    try:
+        with open(config_path, "r", encoding = "utf-8") as f:
+            data = json_loads(f.read())
+
+        if "asr_api_key" not in data.get("Speech Recognition", {}):
+            config.save()
+
+    except Exception as e:
+        logger.warning(f"检查语音转文字配置项时发生错误：{e}")
+
+_ensure_asr_config_written()
 
 # 判断是否需要修补配置文件
 need_patch, config_version = check_need_patch()

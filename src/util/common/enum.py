@@ -60,6 +60,11 @@ class MetadataType(Enum):
     NFO = "nfo"
     JSON = "json"
 
+class AsrOutputFormat(Enum):
+    SRT = "srt"
+    TXT = "txt"
+    BOTH = "srt+txt"
+
 class ProxyType(Enum):
     HTTP = "http"
     # SOCKS4 = "socks4"
@@ -128,11 +133,12 @@ class DownloadStatus(IntEnum):
 
 class DownloadType(IntFlag):
     VIDEO            = 1 << 0       # 下载独立视频流
-    AUDIO            = 1 << 1       # 下载独立音频流
+    AUDIO            = 1 << 1       # 下载音频流
     DANMAKU          = 1 << 2       # 下载弹幕
     SUBTITLE         = 1 << 3       # 下载字幕
     COVER            = 1 << 4       # 下载封面
     METADATA         = 1 << 5       # 下载元数据
+    ASR              = 1 << 6       # 语音转文字
 
 class VideoContainer(Enum):
     MP4 = "mp4"

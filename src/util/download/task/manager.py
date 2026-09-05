@@ -73,7 +73,8 @@ class TaskManager:
             DownloadType.DANMAKU: config.get(config.download_danmaku),
             DownloadType.SUBTITLE: config.get(config.download_subtitle),
             DownloadType.COVER: config.get(config.download_cover),
-            DownloadType.METADATA: config.get(config.download_metadata)
+            DownloadType.METADATA: config.get(config.download_metadata),
+            DownloadType.ASR: config.get(config.asr_enabled)
         }
 
         type = 0

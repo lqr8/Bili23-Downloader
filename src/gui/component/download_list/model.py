@@ -146,8 +146,18 @@ class DownloadListModel(CoverQueryModelBase):
                 # 合并和转换中的任务不允许取消
                 return
 
+            case DownloadStatus.ADDITIONAL_PROCESSING:
+                # 语音转文字进行中：先中断转写线程，待其退出后再清理任务，
+                # 避免运行中的线程被连带销毁，也避免清理与转写进程读写同一批文件产生竞争
+                downloader_manager.stop_asr(task_info, lambda: self._cancelIfStillProcessing(task_info))
+
             case _:
                 task_manager.cancel(task_info)
+
+    def _cancelIfStillProcessing(self, task_info: TaskInfo):
+        # 转写线程可能在被中断前恰好完成，此时任务已进入完成流程，不再取消
+        if task_info.Download.status == DownloadStatus.ADDITIONAL_PROCESSING:
+            task_manager.cancel(task_info)
 
     def batchStart(self):
         for task in self._task_list:

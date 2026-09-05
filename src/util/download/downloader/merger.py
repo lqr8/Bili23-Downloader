@@ -9,6 +9,7 @@ from ...common.config import config
 
 from ...ffmpeg.command import FFmpegCommand
 from ...ffmpeg.runner import FFmpegRunner
+from ...asr.worker import ASRWorker
 
 from ..task.manager import task_manager
 from ..task.info import TaskInfo
@@ -25,6 +26,8 @@ class Merger(QObject):
         self.task_info = task_info
         self._has_error = False
         self._ffmpeg_runner = None
+        self._asr_started = False
+        self._asr_worker = None
 
         self._output_audio_file = None
 
@@ -170,6 +173,10 @@ class Merger(QObject):
         if getattr(self, "_has_error", False):
             return
 
+        # 语音转文字处理，完成后再继续完成任务收尾
+        if self._start_asr():
+            return
+
         self.task_info.Download.status = DownloadStatus.COMPLETED
         self.task_info.Basic.completed_time = get_timestamp()
 
@@ -178,6 +185,52 @@ class Merger(QObject):
         signal_bus.download.auto_manage_concurrent_downloads.emit()
         signal_bus.download.add_to_completed_list.emit([self.task_info])
         signal_bus.download.remove_from_downloading_list.emit(self.task_info)
+
+    def _start_asr(self):
+        # 任务启用了语音转文字时，先在后台执行转写，完成后再继续 mark_as_completed 流程
+        if self._asr_started:
+            return False
+
+        if self.task_info.Download.type & DownloadType.ASR == 0:
+            return False
+
+        if not config.get(config.asr_api_key):
+            self._asr_started = True
+
+            signal_bus.toast.show_long_message.emit(
+                ToastNotificationCategory.WARNING,
+                Translator.TIP_MESSAGES("ASR"),
+                Translator.ERROR_MESSAGES("ASR_NOT_CONFIGURED")
+            )
+
+            return False
+
+        self._asr_started = True
+
+        self.task_info.Download.status = DownloadStatus.ADDITIONAL_PROCESSING
+        self.task_info.Download.status_label = Translator.TIP_MESSAGES("EXTRACTING_AUDIO")
+
+        signal_bus.download.update_downloading_item.emit(self.task_info)
+
+        # ASRWorker 不设置 parent：任务完成后 Downloader/Merger 会被销毁，若线程挂在对象树下会被连带销毁
+        # （此时线程可能仍在运行导致崩溃），其生命周期由类级注册表自行管理
+        self._asr_worker = ASRWorker(self.task_info)
+        self._asr_worker.success.connect(self.mark_as_completed)
+        self._asr_worker.error.connect(self.on_asr_error)
+
+        self._asr_worker.start()
+
+        return True
+
+    def on_asr_error(self, error_message: str):
+        # 转写失败不阻断任务完成，仅提示错误
+        signal_bus.toast.show_long_message.emit(
+            ToastNotificationCategory.ERROR,
+            Translator.ERROR_MESSAGES("ASR_FAILED"),
+            error_message
+        )
+
+        self.mark_as_completed()
 
     def keep_original_files(self):
         try:
