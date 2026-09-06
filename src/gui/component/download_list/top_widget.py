@@ -17,13 +17,13 @@ from util.common.config import config
 class SortFlyoutWidget(FlyoutViewBase):
     closed = Signal()
 
-    def __init__(self, parent = None, sort_by_key_dict: dict = None, trigger_signal_func = None, sort_by_key = None):
+    def __init__(self, parent = None, sort_by_key_dict: dict = None, trigger_signal_func = None, sort_by_key = None, sort_ascending = True):
         super().__init__(parent)
 
         self.sort_by_key_dict = sort_by_key_dict
         self.trigger_signal_func = trigger_signal_func
         self.sort_by_key = sort_by_key
-        self.ascending = True
+        self.ascending = sort_ascending
 
         self.init_UI()
 
@@ -194,6 +194,7 @@ class TopStackedWidget(QStackedWidget):
             sort_by_key_dict,
             signal_bus.download.sort_downloading_list.emit,
             self.download_interface.downloading_list_view.sort_by_key,
+            self.download_interface.downloading_list_view.sort_ascending,
             self.sort_downloading_list_btn
         )
 
@@ -208,11 +209,12 @@ class TopStackedWidget(QStackedWidget):
             sort_by_key_dict,
             signal_bus.download.sort_completed_list.emit,
             self.download_interface.completed_list_view.sort_by_key,
+            self.download_interface.completed_list_view.sort_ascending,
             self.sort_completed_list_btn
         )
 
-    def _show_sort_flyout(self, sort_by_key_dict, trigger_signal_func, sort_by_key, target):
-        view = SortFlyoutWidget(self, sort_by_key_dict, trigger_signal_func, sort_by_key)
+    def _show_sort_flyout(self, sort_by_key_dict, trigger_signal_func, sort_by_key, sort_ascending, target):
+        view = SortFlyoutWidget(self, sort_by_key_dict, trigger_signal_func, sort_by_key, sort_ascending)
 
         flyout = Flyout.make(
             view = view,

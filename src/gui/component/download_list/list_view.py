@@ -201,3 +201,7 @@ class DownloadListView(ListView):
     @property
     def sort_by_key(self):
         return self._model._sort_by_key
+
+    @property
+    def sort_ascending(self):
+        return self._model._ascending

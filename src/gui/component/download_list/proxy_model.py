@@ -255,12 +255,12 @@ class DownloadListProxyModel(QSortFilterProxyModel):
 
         self.sort(0, order)
 
-    def enableSorting(self, default_key: str):
+    def enableSorting(self, default_key: str, ascending: bool = False):
         self._sorting = True
         self._sort_by_key = default_key
-        self._ascending = True
+        self._ascending = ascending
 
-        self.sortBy(default_key, True)
+        self.sortBy(default_key, ascending)
 
     def setFilterText(self, text: str):
         self._filter_text = text.strip()
