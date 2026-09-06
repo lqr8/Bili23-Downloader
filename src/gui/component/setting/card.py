@@ -263,8 +263,11 @@ class SubtitleSettingCard(ExpandGroupSettingCard):
         self.viewLayout.setContentsMargins(0, 0, 0, 0)
         self.viewLayout.setSpacing(0)
 
-        self.addGroup("", self.tr("Download Subtitles"), "", self.download_switch)
+        self.download_group = self.addGroup("", self.tr("Download Subtitles"), "", self.download_switch)
         self.addGroup("", self.tr("Subtitle Format"), "", self.type_choice)
+
+        # 是否有所选视频可用的 B 站字幕（由下载选项对话框查询后更新；默认视为可用，避免误禁开关）
+        self._has_available_subtitles = True
 
         if full_mode:
             self.language_btn = PushButton(self.tr("Customize…"), self)
@@ -272,6 +275,52 @@ class SubtitleSettingCard(ExpandGroupSettingCard):
 
             self.addGroup("", self.tr("Subtitle Language"), "", self.language_btn)
             self.addGroup("", self.tr("Subtitle Style"), self.tr("Only effective for ASS format subtitles"), self.custom_style_btn)
+
+    def set_subtitle_availability(self, no_count: int, ai_count: int, uploader_count: int):
+        # 在"下载字幕"行下方提示所选视频的字幕可用性与字幕来源（UP 主上传 / B 站 AI 自动生成）
+        total = no_count + ai_count + uploader_count
+
+        if total <= 0:
+            # 没有可查询的视频（如音频），不做任何提示
+            return
+
+        self._has_available_subtitles = ai_count + uploader_count > 0
+
+        if ai_count + uploader_count == 0:
+            self.download_group.setContent(Translator.TIP_MESSAGES("NO_SUBTITLES_AVAILABLE"))
+
+            # 所选视频都没有字幕，下载字幕开关无意义，禁用（不改动开关状态本身）
+            self.download_switch.setEnabled(False)
+
+        elif no_count == 0 and uploader_count == 0:
+            # 所有有字幕的视频都只有 B 站 AI 自动生成字幕
+            self.download_group.setContent(Translator.TIP_MESSAGES("AI_ONLY_SUBTITLES"))
+
+        else:
+            if no_count > 0 and ai_count > 0:
+                content = Translator.TIP_MESSAGES("COUNT_NO_AND_AI_ONLY_SUBTITLES").format(no = no_count, ai = ai_count)
+
+            elif no_count > 0:
+                content = Translator.TIP_MESSAGES("COUNT_NO_SUBTITLES").format(count = no_count)
+
+            elif ai_count > 0:
+                content = Translator.TIP_MESSAGES("COUNT_AI_ONLY_SUBTITLES").format(count = ai_count)
+
+            else:
+                # 全部视频都有 UP 主字幕，无需提示
+                content = ""
+
+            self.download_group.setContent(content)
+
+        self._adjustViewSize()
+
+    def set_subtitle_check_failed(self):
+        self.download_group.setContent(Translator.TIP_MESSAGES("SUBTITLE_CHECK_FAILED"))
+
+        self._adjustViewSize()
+
+    def has_available_subtitles(self) -> bool:
+        return self._has_available_subtitles
 
 class CoverSettingCard(ExpandGroupSettingCard):
     def __init__(self, parent = None):
@@ -344,6 +393,31 @@ class ASRSettingCard(ExpandGroupSettingCard):
             self.custom_btn = PushButton(self.tr("Configure…"), self)
 
             self.addGroup("", self.tr("API Settings"), self.tr("Configure the API key and model name"), self.custom_btn)
+
+class SummarySettingCard(ExpandGroupSettingCard):
+    def __init__(self, full_mode = True, parent = None):
+        super().__init__(FluentIcon.ROBOT, self.tr("AI Summary"), self.tr("Summarize transcripts with an OpenAI-compatible LLM after speech-to-text"), parent)
+
+        self.summary_switch = SettingSwitchButton(config.summary_enabled, parent = self)
+
+        # 总结读取的字幕来源：ASR 转写结果或 B 站自带字幕，来源文件缺失时自动回退到另一种
+        self.source_choice = SettingComboBox(
+            config.summary_transcript_source,
+            [Translator.TRANSCRIPT_SOURCE("ASR"), Translator.TRANSCRIPT_SOURCE("CC")],
+            parent = self
+        )
+        self.source_choice.setFixedWidth(160)
+
+        self.viewLayout.setContentsMargins(0, 0, 0, 0)
+        self.viewLayout.setSpacing(0)
+
+        self.addGroup("", self.tr("Enable AI Summary"), self.tr("Generate an AI summary of the transcript after speech-to-text completes"), self.summary_switch)
+        self.addGroup("", self.tr("Subtitle Source"), self.tr("Select the subtitle used for AI summary; automatically falls back to the other source when unavailable"), self.source_choice)
+
+        if full_mode:
+            self.custom_btn = PushButton(self.tr("Configure…"), self)
+
+            self.addGroup("", self.tr("API Settings"), self.tr("Configure the endpoint, API key, model, and prompt"), self.custom_btn)
 
 class NumberSettingCard(ExpandGroupSettingCard):
     def __init__(self, parent_window, parent = None):

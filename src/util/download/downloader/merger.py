@@ -10,6 +10,7 @@ from ...common.config import config
 from ...ffmpeg.command import FFmpegCommand
 from ...ffmpeg.runner import FFmpegRunner
 from ...asr.worker import ASRWorker
+from ...summary.worker import SummaryWorker, get_transcript_path
 
 from ..task.manager import task_manager
 from ..task.info import TaskInfo
@@ -28,6 +29,8 @@ class Merger(QObject):
         self._ffmpeg_runner = None
         self._asr_started = False
         self._asr_worker = None
+        self._summary_started = False
+        self._summary_worker = None
 
         self._output_audio_file = None
 
@@ -177,6 +180,10 @@ class Merger(QObject):
         if self._start_asr():
             return
 
+        # AI 总结处理（依赖语音转文字或 B 站字幕结果），完成后再继续完成任务收尾
+        if self._start_summary():
+            return
+
         self.task_info.Download.status = DownloadStatus.COMPLETED
         self.task_info.Basic.completed_time = get_timestamp()
 
@@ -227,6 +234,58 @@ class Merger(QObject):
         signal_bus.toast.show_long_message.emit(
             ToastNotificationCategory.ERROR,
             Translator.ERROR_MESSAGES("ASR_FAILED"),
+            error_message
+        )
+
+        self.mark_as_completed()
+
+    def _start_summary(self):
+        # 任务启用了语音转文字或字幕下载且开启 AI 总结时，先在后台生成总结，完成后再继续 mark_as_completed 流程
+        if self._summary_started:
+            return False
+
+        if self.task_info.Download.type & (DownloadType.ASR | DownloadType.SUBTITLE) == 0:
+            return False
+
+        if not config.get(config.summary_enabled):
+            return False
+
+        self._summary_started = True
+
+        if not config.get(config.summary_api_key):
+            signal_bus.toast.show_long_message.emit(
+                ToastNotificationCategory.WARNING,
+                Translator.TIP_MESSAGES("SUMMARY"),
+                Translator.ERROR_MESSAGES("SUMMARY_NOT_CONFIGURED")
+            )
+
+            return False
+
+        if get_transcript_path(self.task_info) is None:
+            # 没有可用的转写文本（如媒体文件不含音轨导致转写被跳过），静默跳过总结
+            logger.info(f"任务 {self.task_info.Basic.task_id} 没有转写文本，跳过 AI 总结")
+
+            return False
+
+        self.task_info.Download.status = DownloadStatus.ADDITIONAL_PROCESSING
+        self.task_info.Download.status_label = Translator.TIP_MESSAGES("GENERATING_SUMMARY")
+
+        signal_bus.download.update_downloading_item.emit(self.task_info)
+
+        # SummaryWorker 不设置 parent，原因同 ASRWorker（避免任务对象树销毁时连带销毁运行中的线程）
+        self._summary_worker = SummaryWorker(self.task_info)
+        self._summary_worker.success.connect(self.mark_as_completed)
+        self._summary_worker.error.connect(self.on_summary_error)
+
+        self._summary_worker.start()
+
+        return True
+
+    def on_summary_error(self, error_message: str):
+        # 总结失败不阻断任务完成，仅提示错误
+        signal_bus.toast.show_long_message.emit(
+            ToastNotificationCategory.ERROR,
+            Translator.ERROR_MESSAGES("SUMMARY_FAILED"),
             error_message
         )
 

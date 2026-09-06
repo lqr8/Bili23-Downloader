@@ -7,7 +7,7 @@ from qfluentwidgets import (
 )
 
 from gui.component.setting import (
-    PrioritySettingCard, DanmakuSettingCard, SubtitleSettingCard, CoverSettingCard, MetadataSettingCard, ASRSettingCard,
+    PrioritySettingCard, DanmakuSettingCard, SubtitleSettingCard, CoverSettingCard, MetadataSettingCard, ASRSettingCard, SummarySettingCard,
     CDNSettingCard, ProxySettingCard,
     FFmpegSettingCard, NumberSettingCard, DownloadFormatCard, DownloadPathSettingCard, ParsingSettingCard, WindowBehaviorSettingCard,
     DownloadHandlingSettingCard, DownloadConcurrencySettingCard, PersonalizationCard, CheckUpdateSettingCard, OtherAdvancedSettingCard
@@ -66,6 +66,7 @@ class SettingInterface(ScrollArea):
         self.cover_setting_card = CoverSettingCard(parent = self)
         self.metadata_setting_card = MetadataSettingCard(parent = self)
         self.asr_setting_card = ASRSettingCard(parent = self)
+        self.summary_setting_card = SummarySettingCard(parent = self)
 
         # File Naming
         self.file_naming_group = SettingCardGroup(self.tr("File naming"), self)
@@ -109,6 +110,7 @@ class SettingInterface(ScrollArea):
         self.additional_group.addSettingCard(self.cover_setting_card)
         self.additional_group.addSettingCard(self.metadata_setting_card)
         self.additional_group.addSettingCard(self.asr_setting_card)
+        self.additional_group.addSettingCard(self.summary_setting_card)
 
         # File Naming Convention
         self.file_naming_group.addSettingCard(self.naming_convention_setting_card)
@@ -167,6 +169,7 @@ class SettingInterface(ScrollArea):
         self.subtitle_setting_card.language_btn.clicked.connect(self.on_custom_subtitles_language)
         self.subtitle_setting_card.custom_style_btn.clicked.connect(self.on_custom_subtitles_style)
         self.asr_setting_card.custom_btn.clicked.connect(self.on_custom_asr)
+        self.summary_setting_card.custom_btn.clicked.connect(self.on_custom_summary)
 
         # File Naming
         self.naming_convention_setting_card.clicked.connect(self.on_custom_naming_rule)
@@ -262,6 +265,12 @@ class SettingInterface(ScrollArea):
         from ..dialog.setting.asr import ASRSettingsDialog
 
         dialog = ASRSettingsDialog(self.main_window)
+        dialog.exec()
+
+    def on_custom_summary(self):
+        from ..dialog.setting.summary import SummarySettingsDialog
+
+        dialog = SummarySettingsDialog(self.main_window)
         dialog.exec()
 
     def on_custom_naming_rule(self):

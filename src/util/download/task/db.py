@@ -96,10 +96,15 @@ class TaskDatabase(Database):
                 VALUES (?, ?, ?, ?, ?, ?)
             """, info_list)
 
-    def update_task(self, task_info: TaskInfo):
-        self.execute("""
-            UPDATE download_task SET data = ? WHERE task_id = ?
-        """, (json_dumps(task_info.to_dict()), task_info.Basic.task_id))
+    def update_task(self, task_info: TaskInfo, completed: bool = False):
+        if completed:
+            self.execute("""
+                UPDATE completed_task SET data = ? WHERE task_id = ?
+            """, (json_dumps(task_info.to_dict()), task_info.Basic.task_id))
+        else:
+            self.execute("""
+                UPDATE download_task SET data = ? WHERE task_id = ?
+            """, (json_dumps(task_info.to_dict()), task_info.Basic.task_id))
 
     def delete_task(self, task_id: str, completed: bool = False):
         if completed:

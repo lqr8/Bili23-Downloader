@@ -4,6 +4,7 @@ from ...common.translator import Translator
 
 from ..task.info import TaskInfo
 from ...asr.worker import ASRWorker
+from ...summary.worker import SummaryWorker
 from .downloader import Downloader
 
 class DownloaderManager:
@@ -52,9 +53,11 @@ class DownloaderManager:
         if downloader:
             downloader.wait(callback)
 
-    def stop_asr(self, task_info: TaskInfo, callback):
-        # 中断任务的语音转写线程，待其退出后执行 callback
-        ASRWorker.stop_for_task(task_info.Basic.task_id, callback)
+    def stop_additional_processing(self, task_info: TaskInfo, callback):
+        # 中断任务的额外处理线程（语音转写 / AI 总结，同一时刻只会有一个在运行），全部退出后执行 callback
+        task_id = task_info.Basic.task_id
+
+        ASRWorker.stop_for_task(task_id, lambda: SummaryWorker.stop_for_task(task_id, callback))
 
     def show_notification(self):
         # 如果没有正在下载的任务了，发射下载完成的通知信号

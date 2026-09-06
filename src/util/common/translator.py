@@ -281,7 +281,11 @@ class Translator:
             "PARSING_STOPPED_MESSAGE": translate("ERROR_MESSAGES", "An error occurred during parsing, and the process has been stopped. Parsing was completed up to page {page}.\n\nReminder: Due to Bilibili's anti-abuse mechanism, parsing too many pages or at too high a frequency may result in failure and IP ban. Please use with caution!\n\n{error}"),
             "ASR_NOT_CONFIGURED": translate("ERROR_MESSAGES", "Speech-to-text is enabled but the API key is not configured. Please go to Settings → Additional → Speech-to-Text (ASR) → API Settings to configure it."),
             "ASR_FAILED": translate("ERROR_MESSAGES", "Speech-to-text transcription failed"),
-            "ASR_EMPTY_RESULT": translate("ERROR_MESSAGES", "The speech-to-text result is empty")
+            "ASR_EMPTY_RESULT": translate("ERROR_MESSAGES", "The speech-to-text result is empty"),
+            "SUMMARY_NOT_CONFIGURED": translate("ERROR_MESSAGES", "AI summary is enabled but the API key is not configured. Please go to Settings → Additional → AI Summary → API Settings to configure it."),
+            "SUMMARY_FAILED": translate("ERROR_MESSAGES", "AI summary generation failed"),
+            "SUMMARY_EMPTY_RESULT": translate("ERROR_MESSAGES", "The AI summary result is empty"),
+            "SUMMARY_NO_TRANSCRIPT": translate("ERROR_MESSAGES", "No transcript file found for this task, AI summary has been skipped")
         }
 
     @staticmethod
@@ -313,6 +317,14 @@ class Translator:
             "UPLOADING_AUDIO": translate("TIP_MESSAGES", "Uploading audio..."),
             "TRANSCRIBING_SPEECH": translate("TIP_MESSAGES", "Transcribing speech..."),
             "ASR_SKIPPED_NO_AUDIO": translate("TIP_MESSAGES", "No audio track is available in the download, speech-to-text has been skipped"),
+            "SUMMARY": translate("TIP_MESSAGES", "AI Summary"),
+            "GENERATING_SUMMARY": translate("TIP_MESSAGES", "Generating AI summary..."),
+            "NO_SUBTITLES_AVAILABLE": translate("TIP_MESSAGES", "The selected videos have no available subtitles"),
+            "AI_ONLY_SUBTITLES": translate("TIP_MESSAGES", "The selected videos only have AI-generated subtitles (not uploaded by the uploader)"),
+            "COUNT_NO_SUBTITLES": translate("TIP_MESSAGES", "{count} videos have no available subtitles"),
+            "COUNT_AI_ONLY_SUBTITLES": translate("TIP_MESSAGES", "{count} videos only have AI-generated subtitles"),
+            "COUNT_NO_AND_AI_ONLY_SUBTITLES": translate("TIP_MESSAGES", "{no} videos have no available subtitles, and {ai} videos only have AI-generated subtitles"),
+            "SUBTITLE_CHECK_FAILED": translate("TIP_MESSAGES", "Failed to check subtitle availability"),
         }
 
     @staticmethod
@@ -322,7 +334,17 @@ class Translator:
             "DANMAKU": translate("ADDITIONAL_FILES_QUALIFIER", "Danmaku"),
             "SUBTITLES": translate("ADDITIONAL_FILES_QUALIFIER", "Subtitles"),
             "METADATA": translate("ADDITIONAL_FILES_QUALIFIER", "Metadata"),
-            "ASR": translate("ADDITIONAL_FILES_QUALIFIER", "ASR")
+            "ASR": translate("ADDITIONAL_FILES_QUALIFIER", "ASR"),
+            "SUMMARY": translate("ADDITIONAL_FILES_QUALIFIER", "Summary")
+        }
+
+    @staticmethod
+    @get_map_method
+    def TRANSCRIPT_SOURCE(key = None):
+        # AI 总结的转写来源：B 站自带字幕或 ASR 生成的字幕
+        return {
+            "ASR": translate("TRANSCRIPT_SOURCE", "ASR Subtitle"),
+            "CC": translate("TRANSCRIPT_SOURCE", "Bilibili Subtitle")
         }
 
     @staticmethod

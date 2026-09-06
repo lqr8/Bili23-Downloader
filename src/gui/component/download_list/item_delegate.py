@@ -2,7 +2,7 @@ from PySide6.QtCore import QSize, QModelIndex, Qt, QRect, QEvent, QObject
 from PySide6.QtWidgets import QStyleOptionViewItem
 from PySide6.QtGui import QPainter, QMouseEvent
 
-from qfluentwidgets import FluentIcon
+from qfluentwidgets import FluentIcon, Action, RoundMenu
 
 from gui.component.view_model import CoverQueryDelegateBase
 
@@ -10,7 +10,8 @@ from util.common.icon import ExtendedFluentIcon
 from util.common.io.directory import Directory
 from util.common.translator import Translator
 from util.download.task.info import TaskInfo
-from util.common.enum import DownloadStatus
+from util.summary.worker import get_transcript_path, get_summary_path
+from util.common.enum import DownloadStatus, TranscriptSource
 from util.format.units import Units
 from util.format.time import Time
 
@@ -25,6 +26,12 @@ class DownloadItemDelegate(CoverQueryDelegateBase):
 
         self.ActionButtonHoveredRow = -1
         self.DeleteButtonHoveredRow = -1
+        self.TranscriptButtonHoveredRow = -1
+        self.SummaryButtonHoveredRow = -1
+
+        # 任务的字幕/总结文件查询结果缓存（task_id → (transcript_path, summary_exists)）。
+        # 任务进入已完成状态时这些文件已全部写出，此后结果不变；缓存可避免每次重绘/悬停都扫描下载目录
+        self._additional_file_cache = {}
 
     def sizeHint(self, option, index):
         return QSize(0, 100)
@@ -59,15 +66,14 @@ class DownloadItemDelegate(CoverQueryDelegateBase):
         infoRect = self.uiRect.getInfoRect(titleRect, option, completed = self.isTaskCompleted(task_info))
         self._drawDescriptionText(painter, infoRect, self.uiData.getInfoText(task_info))
 
-        sizeRect = self.uiRect.getSizeRect(infoRect)
+        # 右侧进度条、状态（已完成任务右侧多出查看字幕/总结按钮，进度条相应左移让出空间）
+        progressBarRect = self.uiRect.getProgressBarRect(titleRect, option, extra_button_count = 2 if self.isTaskCompleted(task_info) else 0)
+
+        statusRect = self.uiRect.getStatusRect(infoRect, option)
+        sizeRect = self.uiRect.getSizeRect(infoRect, statusRect)
+
         self._drawDescriptionText(painter, sizeRect, self.uiData.getSizeText(task_info))
-
-
-        # 右侧进度条、状态
-        progressBarRect = self.uiRect.getProgressBarRect(titleRect, option)
         self._drawProgressBar(painter, progressBarRect, task_info.Download.progress, error = self.isTaskFailed(task_info), paused = self.isTaskPaused(task_info))
-
-        statusRect = self.uiRect.getStatusRect(progressBarRect, infoRect, option)
         self._drawDescriptionText(painter, statusRect, self.uiData.getStatusText(task_info), error = self.isTaskFailed(task_info))
 
 
@@ -77,6 +83,16 @@ class DownloadItemDelegate(CoverQueryDelegateBase):
 
         deleteButtonRect = self.uiRect.getDeleteButtonRect(option)
         self._drawButton(painter, deleteButtonRect, FluentIcon.DELETE, self.DeleteButtonHoveredRow == index.row())
+
+        # 已完成任务的查看字幕 / 查看总结按钮（位于控制按钮左侧）
+        if self.isTaskCompleted(task_info):
+            if self.hasTranscriptFile(task_info):
+                transcriptButtonRect = self.uiRect.getTranscriptButtonRect(option)
+                self._drawButton(painter, transcriptButtonRect, ExtendedFluentIcon.SUBTITLES, self.TranscriptButtonHoveredRow == index.row())
+
+            if self.hasSummaryEntry(task_info):
+                summaryButtonRect = self.uiRect.getSummaryButtonRect(option)
+                self._drawButton(painter, summaryButtonRect, FluentIcon.ROBOT, self.SummaryButtonHoveredRow == index.row())
     
     def _buttonHoverEvent(self, option: QStyleOptionViewItem, index: QModelIndex, event: QMouseEvent):
         pos = event.pos()
@@ -93,6 +109,18 @@ class DownloadItemDelegate(CoverQueryDelegateBase):
             self.DeleteButtonHoveredRow = index.row()
         else:
             self.DeleteButtonHoveredRow = -1
+
+        task_info: TaskInfo = index.data(Qt.ItemDataRole.UserRole)
+
+        if task_info and self.isTaskCompleted(task_info) and self.hasTranscriptFile(task_info) and self.uiRect.getTranscriptButtonRect(option).contains(pos):
+            self.TranscriptButtonHoveredRow = index.row()
+        else:
+            self.TranscriptButtonHoveredRow = -1
+
+        if task_info and self.isTaskCompleted(task_info) and self.hasSummaryEntry(task_info) and self.uiRect.getSummaryButtonRect(option).contains(pos):
+            self.SummaryButtonHoveredRow = index.row()
+        else:
+            self.SummaryButtonHoveredRow = -1
 
     def _pressEvent(self, option: QStyleOptionViewItem, index: QModelIndex, event: QMouseEvent):
         pos = event.pos()
@@ -125,7 +153,63 @@ class DownloadItemDelegate(CoverQueryDelegateBase):
 
             return True
 
+        task_info: TaskInfo = index.data(Qt.ItemDataRole.UserRole)
+
+        if task_info and self.isTaskCompleted(task_info):
+            if self.hasTranscriptFile(task_info) and self.uiRect.getTranscriptButtonRect(option).contains(pos):
+                self.openTranscriptViewer(task_info, event)
+
+                return True
+
+            if self.hasSummaryEntry(task_info) and self.uiRect.getSummaryButtonRect(option).contains(pos):
+                summary_path = get_summary_path(task_info)
+
+                self.openTextViewer(summary_path if summary_path.exists() else None, task_info, is_summary = True)
+
+                return True
+
         return False
+
+    def openTranscriptViewer(self, task_info: TaskInfo, event: QMouseEvent):
+        # ASR 字幕与 B 站字幕都存在时弹出菜单选择，否则直接打开唯一可用的字幕
+        asr_path = get_transcript_path(task_info, TranscriptSource.ASR)
+        cc_path = get_transcript_path(task_info, TranscriptSource.CC)
+
+        if asr_path is not None and cc_path is not None:
+            menu = RoundMenu(parent = self.parent().window())
+
+            menu.addAction(Action(ExtendedFluentIcon.SUBTITLES, Translator.TRANSCRIPT_SOURCE("CC"), triggered = lambda: self.openTextViewer(cc_path, task_info, is_summary = False)))
+            menu.addAction(Action(FluentIcon.MICROPHONE, Translator.TRANSCRIPT_SOURCE("ASR"), triggered = lambda: self.openTextViewer(asr_path, task_info, is_summary = False)))
+
+            menu.exec(event.globalPos())
+        else:
+            self.openTextViewer(asr_path or cc_path, task_info, is_summary = False)
+
+    def openTextViewer(self, file_path: Path | None, task_info: TaskInfo, is_summary: bool):
+        from gui.dialog.viewer import TextViewerDialog
+
+        dialog = TextViewerDialog(file_path, task_info, is_summary = is_summary, parent = self.parent().window())
+        dialog.show()
+
+    def hasTranscriptFile(self, task_info: TaskInfo):
+        return self._get_additional_file_info(task_info)[0] is not None
+
+    def hasSummaryEntry(self, task_info: TaskInfo):
+        # 已有总结文件，或已有转写文本（可手动生成总结）时，显示查看总结按钮
+        transcript_path, summary_exists = self._get_additional_file_info(task_info)
+
+        return summary_exists or transcript_path is not None
+
+    def _get_additional_file_info(self, task_info: TaskInfo):
+        task_id = task_info.Basic.task_id
+
+        if task_id not in self._additional_file_cache:
+            transcript_path = get_transcript_path(task_info)
+            summary_exists = get_summary_path(task_info).exists()
+
+            self._additional_file_cache[task_id] = (transcript_path, summary_exists)
+
+        return self._additional_file_cache[task_id]
 
     def openFileLocation(self, task_info: TaskInfo):
         directory = Path(task_info.File.download_path, task_info.File.folder)
@@ -171,21 +255,25 @@ class UIRect:
         
         return QRect(left, top, width, 20)
     
-    def getSizeRect(self, infoRect: QRect):
+    def getSizeRect(self, infoRect: QRect, statusRect: QRect):
+        # 文件大小位于信息与状态之间，两者空间不足时压缩宽度（文字以省略号截断），避免与状态文字重叠
         left = infoRect.right() + self.margin
+        width = max(0, min(150, statusRect.left() - self.margin - left))
 
         top = infoRect.top()
 
-        return QRect(left, top, 150, 20)
+        return QRect(left, top, width, 20)
 
-    def getProgressBarRect(self, titleRect: QRect, option: QStyleOptionViewItem):
-        left = option.rect.width() - self.margin - self.buttonSize * 2 - self.spacer * 3 - 200
+    def getProgressBarRect(self, titleRect: QRect, option: QStyleOptionViewItem, extra_button_count: int = 0):
+        left = option.rect.width() - self.margin - self.buttonSize * 2 - self.spacer * 3 - 200 - extra_button_count * (self.buttonSize + self.margin)
         top = (option.rect.height() - 16) / 2 + option.rect.top()  #titleRect.top() + self.margin
 
         return QRect(left, top, 200, 16)
     
-    def getStatusRect(self, progressBarRect: QRect, infoRect: QRect, option: QStyleOptionViewItem):
-        left = progressBarRect.left()
+    def getStatusRect(self, infoRect: QRect, option: QStyleOptionViewItem):
+        # 状态文字固定显示在底部信息行右侧，与进度条位置无关
+        # （已完成任务进度条会为查看字幕/总结按钮左移，若状态跟随左移会与文件大小文字重叠）
+        left = option.rect.width() - self.margin - self.buttonSize * 2 - self.spacer * 3 - 200
         top = infoRect.top()
 
         return QRect(left, top, 200, 20)
@@ -199,6 +287,22 @@ class UIRect:
     def getDeleteButtonRect(self, option: QStyleOptionViewItem):
         left = option.rect.width() - self.buttonSize - self.spacer * 2 + self.margin
         top = (option.rect.height() - self.buttonSize) / 2 + option.rect.top()
+
+        return QRect(left, top, self.buttonSize, self.buttonSize)
+
+    def getSummaryButtonRect(self, option: QStyleOptionViewItem):
+        # 查看总结按钮，位于控制按钮左侧
+        actionButtonRect = self.getActionButtonRect(option)
+        left = actionButtonRect.left() - self.margin - self.buttonSize
+        top = actionButtonRect.top()
+
+        return QRect(left, top, self.buttonSize, self.buttonSize)
+
+    def getTranscriptButtonRect(self, option: QStyleOptionViewItem):
+        # 查看字幕按钮，位于查看总结按钮左侧
+        summaryButtonRect = self.getSummaryButtonRect(option)
+        left = summaryButtonRect.left() - self.margin - self.buttonSize
+        top = summaryButtonRect.top()
 
         return QRect(left, top, self.buttonSize, self.buttonSize)
 

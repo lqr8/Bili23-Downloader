@@ -147,9 +147,9 @@ class DownloadListModel(CoverQueryModelBase):
                 return
 
             case DownloadStatus.ADDITIONAL_PROCESSING:
-                # 语音转文字进行中：先中断转写线程，待其退出后再清理任务，
-                # 避免运行中的线程被连带销毁，也避免清理与转写进程读写同一批文件产生竞争
-                downloader_manager.stop_asr(task_info, lambda: self._cancelIfStillProcessing(task_info))
+                # 语音转文字 / AI 总结进行中：先中断处理线程，待其退出后再清理任务，
+                # 避免运行中的线程被连带销毁，也避免清理与处理进程读写同一批文件产生竞争
+                downloader_manager.stop_additional_processing(task_info, lambda: self._cancelIfStillProcessing(task_info))
 
             case _:
                 task_manager.cancel(task_info)

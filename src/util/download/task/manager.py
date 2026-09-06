@@ -211,7 +211,8 @@ class TaskManager:
         return task_info_list
 
     def update(self, task_info: TaskInfo):
-        self.db_manager.update_task(task_info)
+        # 已完成的任务存储在 completed_task 表中
+        self.db_manager.update_task(task_info, completed = task_info.Download.status == DownloadStatus.COMPLETED)
 
     def delete(self, task_info: TaskInfo, completed: bool = False):
         self.db_manager.delete_task(task_info.Basic.task_id, completed)

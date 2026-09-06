@@ -65,6 +65,10 @@ class AsrOutputFormat(Enum):
     TXT = "txt"
     BOTH = "srt+txt"
 
+class TranscriptSource(Enum):
+    ASR = "asr"      # 语音转文字结果
+    CC = "cc"        # B 站自带字幕
+
 class ProxyType(Enum):
     HTTP = "http"
     # SOCKS4 = "socks4"

@@ -9,7 +9,7 @@ from qfluentwidgets import (
 from .serializer import LanguageSerializer, ScalingSerializer
 from .enum import (
     Language, WhenClose, DanmakuType, SubtitleType, CoverType, MetadataType, ProxyType, FFmpegSource, NumberingType,
-    Scaling, FileConflictResolution, VideoContainer, AutoSelectMode, Area, DuplicateDownloadResolution, AsrOutputFormat
+    Scaling, FileConflictResolution, VideoContainer, AutoSelectMode, Area, DuplicateDownloadResolution, AsrOutputFormat, TranscriptSource
 )
 from ._json import json_loads
 
@@ -115,6 +115,15 @@ class DefaultValue:
         "download_specified": False,
         "specified_language": []
     }
+
+    # AI 总结的默认 Prompt 模板，{text} 为字幕内容占位符
+    summary_prompt = """请对以下视频字幕内容进行总结，要求：
+1. 用一句话概括视频主题
+2. 提炼 3-7 条核心要点，每条一行
+3. 按话题对内容分段，给出每段的小标题
+
+字幕内容：
+{text}"""
 
     subtitle_style = {
         "font": {
@@ -357,6 +366,14 @@ class APPConfig(QConfig):
     asr_model = ConfigItem("Speech Recognition", "asr_model", "qwen3-asr-flash-filetrans")
     asr_output_format = OptionsConfigItem("Speech Recognition", "asr_output_format", AsrOutputFormat.SRT, OptionsValidator(AsrOutputFormat), EnumSerializer(AsrOutputFormat))
 
+    # AI Summary（OpenAI 兼容接口）
+    summary_enabled = ConfigItem("AI Summary", "summary_enabled", False, BoolValidator())
+    summary_base_url = ConfigItem("AI Summary", "summary_base_url", "https://api.deepseek.com")
+    summary_api_key = ConfigItem("AI Summary", "summary_api_key", "")
+    summary_model = ConfigItem("AI Summary", "summary_model", "deepseek-v4-flash")
+    summary_prompt = ConfigItem("AI Summary", "summary_prompt", DefaultValue.summary_prompt)
+    summary_transcript_source = OptionsConfigItem("AI Summary", "summary_transcript_source", TranscriptSource.ASR, OptionsValidator(TranscriptSource), EnumSerializer(TranscriptSource))
+
     # File Naming
     naming_rule_list = ConfigItem("File Naming", "naming_rule_list", DefaultValue.naming_rule_list)
     numbering_type = OptionsConfigItem("File Naming", "numbering_type", NumberingType.CONTINUOUS, OptionsValidator(NumberingType), EnumSerializer(NumberingType))
@@ -486,8 +503,8 @@ if not config_path.exists():
 
 qconfig.load(config_path, config)
 
-# 语音转文字相关配置项为后续版本新增，检测到缺失时保存一次，确保配置文件中存在这些键，便于用户手动填写 API Key
-def _ensure_asr_config_written():
+# 语音转文字 / AI 总结相关配置项为后续版本新增，检测到缺失时保存一次，确保配置文件中存在这些键，便于用户手动填写 API Key
+def _ensure_new_config_written():
     if not config_path.exists():
         config.save()
         return
@@ -499,10 +516,13 @@ def _ensure_asr_config_written():
         if "asr_api_key" not in data.get("Speech Recognition", {}):
             config.save()
 
-    except Exception as e:
-        logger.warning(f"检查语音转文字配置项时发生错误：{e}")
+        if "summary_api_key" not in data.get("AI Summary", {}):
+            config.save()
 
-_ensure_asr_config_written()
+    except Exception as e:
+        logger.warning(f"检查新增配置项时发生错误：{e}")
+
+_ensure_new_config_written()
 
 # 判断是否需要修补配置文件
 need_patch, config_version = check_need_patch()

@@ -23,7 +23,7 @@ target_language = "zh_CN"
 
 # 项目根目录（请根据实际情况修改）
 # Project root directory (please modify according to your actual situation)
-project_root = r"D:\Projects\Python\Bili23_Downloader_Fluent"
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 # ---------- 代码实现 (Code Implementation) ---------
@@ -84,7 +84,9 @@ sources = [
     "src/gui/dialog/setting/starting_number.py",
     "src/gui/dialog/setting/subtitles_language.py",
     "src/gui/dialog/setting/subtitles_style.py",
+    "src/gui/dialog/setting/summary.py",
     "src/gui/dialog/setting/user_agent.py",
+    "src/gui/dialog/viewer/text_viewer.py",
     "src/gui/dialog/log.py",
     "src/gui/dialog/login.py",
     "src/gui/dialog/update.py",
